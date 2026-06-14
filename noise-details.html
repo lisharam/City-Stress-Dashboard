@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Noise Details - City Stress Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="details-page">
+  <!-- Dark mode toggle -->
+  <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
+  
+  <div id="loadingSpinner" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 9999;">
+    <div class="spinner"></div>
+    <p style="margin-top: 20px; font-size: 14px; color: #666;">Loading data...</p>
+  </div>
+  
+  <div class="details-header">
+    <a href="home.html" class="back-btn">← Back</a>
+    <div class="details-title">
+      <h1>🔊 Noise Pollution Analysis</h1>
+      <p id="cityName"></p>
+    </div>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+  </div>
+
+  <div class="details-container">
+    <!-- LOCATION OVERVIEW SECTION -->
+    <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(230, 126, 34, 0.2);">
+      <h2 style="margin-top: 0; margin-bottom: 15px;">📍 Location Overview & Area Networks</h2>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">State</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedState">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">District</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedDistrict">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">Selected City/Area</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedCityDisplay">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">Total Areas in District</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="totalAreasCount">-</div>
+        </div>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-top: 15px;">
+        <div style="font-size: 12px; font-weight: bold; margin-bottom: 10px;">🌐 All City Areas in District:</div>
+        <div id="districtAreasGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-size: 13px;">
+          <!-- Areas will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card large">
+        <div class="stat-label">Current Noise Level</div>
+        <div class="stat-value" id="noiseLevel" style="color: #f39c12;">-</div>
+        <div id="realtimeStatus" class="realtime-status">Now: - • 1h change: -</div>
+        <div class="stat-detail">dB (decibels)</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Safe Limit</div>
+        <div class="stat-value" style="color: #2ecc71;">55</div>
+        <div class="stat-detail">dB (WHO standard)</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Areas Affected</div>
+        <div class="stat-value" id="affectedAreas">-</div>
+        <div class="stat-detail">zones with high noise</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Noise Stress</div>
+        <div class="stat-value" id="noiseStress">-</div>
+        <div class="stat-detail">Stress index</div>
+      </div>
+    </div>
+
+    <!-- NOISE SCALE REFERENCE -->
+    <div class="noise-scale-section">
+      <h2>📏 Noise Level Reference</h2>
+      <div class="noise-scale">
+        <div class="scale-item" style="background: #2ecc71;">
+          <div class="scale-db">30 dB</div>
+          <div class="scale-desc">Quiet (Library)</div>
+        </div>
+        <div class="scale-item" style="background: #f1c40f;">
+          <div class="scale-db">60 dB</div>
+          <div class="scale-desc">Normal (Conversation)</div>
+        </div>
+        <div class="scale-item" style="background: #f39c12;">
+          <div class="scale-db">75 dB</div>
+          <div class="scale-desc">Loud (Traffic)</div>
+        </div>
+        <div class="scale-item" style="background: #e74c3c;">
+          <div class="scale-db">90 dB</div>
+          <div class="scale-desc">Very Loud (Alarm)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WHEN NOISE WILL REDUCE -->
+    <div class="forecast-section">
+      <h2>📅 Noise Forecast (Next 24 Hours)</h2>
+      <div class="forecast-grid" id="forecastGrid"></div>
+    </div>
+
+    <!-- HOURLY CHART -->
+    <div class="chart-section">
+      <h2>📊 24-Hour Noise Pattern</h2>
+      <canvas id="noiseChart"></canvas>
+    </div>
+
+    <!-- NOISE HOTSPOTS -->
+    <div class="hotspots-section">
+      <h2>🔴 High Noise Zones</h2>
+      <div class="hotspots-list" id="hotspotsList"></div>
+    </div>
+
+    <!-- HEALTH IMPACT -->
+    <div class="health-impact-section">
+      <h2>⚕️ Health Impact of Noise Pollution</h2>
+      <div class="impact-list">
+        <div class="impact-item">
+          <div class="impact-level">60-70 dB</div>
+          <div class="impact-desc">Sleep disturbance, stress</div>
+        </div>
+        <div class="impact-item">
+          <div class="impact-level">70-80 dB</div>
+          <div class="impact-desc">Hearing damage, hypertension</div>
+        </div>
+        <div class="impact-item">
+          <div class="impact-level">80+ dB</div>
+          <div class="impact-desc">Severe hearing loss, cardiovascular issues</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECOMMENDATIONS -->
+    <div class="recommendations-section">
+      <h2>💡 Recommendations</h2>
+      <div class="recommendations-list" id="recommendationsList"></div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="apiService.js"></script>
+  <script>
+    // ====== DARK MODE TOGGLE ======
+    const themeToggle = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark-mode');
+      themeToggle.textContent = '☀️';
+    }
+    
+    themeToggle.addEventListener('click', function() {
+      document.body.classList.toggle('dark-mode');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      themeToggle.textContent = isDark ? '☀️' : '🌙';
+    });
+
+    document.addEventListener('DOMContentLoaded', initNoiseDetails);
+
+    function initNoiseDetails() {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      
+      const city = (user.city || '').trim();
+      console.log('[Noise] Initializing for city:', city);
+      
+      if (!city) {
+        document.getElementById('cityName').textContent = `📍 No city selected`;
+        return;
+      }
+
+      document.getElementById('cityName').textContent = `📍 ${city} (Loading...)`;
+      
+      // Fetch from backend API with timeout
+      let timeoutHandle = setTimeout(() => {
+        console.error('[Noise] API Request timeout!');
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('cityName').textContent = `📍 ${city} (Connection timeout)`;
+      }, 15000);
+      
+      ApiService.getCityData(city).then(response => {
+        clearTimeout(timeoutHandle);
+        console.log('[Noise] API Response received ✅');
+        const cityData = response.data || response;
+        console.log('[Noise] Data keys:', Object.keys(cityData || {}).slice(0, 8));
+        
+        if (!cityData || !cityData.noise) {
+          throw new Error('Invalid data - no noise field');
+        }
+        
+        // Hide loading spinner
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        displayNoiseStats(cityData);
+        displayNoiseForecast(cityData);
+        createNoiseChart(cityData);
+        displayNoiseHotspots(cityData);
+        displayRecommendations(cityData);
+        document.getElementById('cityName').textContent = `📍 ${city}`;
+        
+        // Display location information
+        const user = JSON.parse(localStorage.getItem('user')) || {};
+        const state = user.state || 'Karnataka';
+        const district = user.district || 'Unknown';
+        displayLocationInfo(state, district, city);
+        
+        // Realtime updates for noise
+        updateRealtimeStatus(cityData, 'noise');
+        setInterval(() => {
+          ApiService.getCityData(city).then(res => {
+            const latest = res.data || res;
+            if (latest) updateRealtimeStatus(latest, 'noise');
+          }).catch(e => console.warn('[Noise] Realtime update failed:', e.message));
+        }, 60000);
+      }).catch(err => {
+        clearTimeout(timeoutHandle);
+        console.error('[Noise] ERROR:', err.message);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('cityName').textContent = `📍 ${city} (❌ ${err.message})`;
+      });
+    }
+
+    function displayNoiseStats(data) {
+      document.getElementById('noiseLevel').textContent = data.noise.level;
+      document.getElementById('affectedAreas').textContent = data.noise.affectedAreas;
+      document.getElementById('noiseStress').textContent = Math.round(data.noise.stress);
+    }
+
+    function displayNoiseForecast(data) {
+      const forecastGrid = document.getElementById('forecastGrid');
+      const hours = ['12AM', '2AM', '4AM', '6AM', '8AM', '10AM', '12PM', '2PM', '4PM', '6PM', '8PM', '10PM'];
+      const noiseLevels = [45, 42, 40, 50, 72, 78, 75, 68, 70, 82, 80, 55];
+
+      forecastGrid.innerHTML = '';
+      
+      for (let i = 0; i < hours.length; i++) {
+        const level = noiseLevels[i];
+        let status = '✅ Safe';
+        let statusClass = 'good';
+        
+        if (level > 55) {
+          status = `⚠️ ${level} dB (Above Safe)`;
+          statusClass = level > 75 ? 'bad' : 'moderate';
+        }
+
+        forecastGrid.innerHTML += `
+          <div class="forecast-card ${statusClass}">
+            <div class="forecast-time">${hours[i]}</div>
+            <div class="forecast-stress">${level} dB</div>
+            <div class="forecast-status">${status}</div>
+          </div>
+        `;
+      }
+    }
+
+    function displayLocationInfo(state, district, city) {
+      document.getElementById('selectedState').textContent = state;
+      document.getElementById('selectedDistrict').textContent = district;
+      document.getElementById('selectedCityDisplay').textContent = city + ' ✓';
+      
+      const cities = window.districtCityMap[district] || [];
+      document.getElementById('totalAreasCount').textContent = cities.length;
+      
+      const areasGrid = document.getElementById('districtAreasGrid');
+      areasGrid.innerHTML = '';
+      cities.forEach(areaCity => {
+        const isSelected = areaCity === city;
+        areasGrid.innerHTML += `
+          <div style="background: ${isSelected ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)'}; padding: 8px; border-radius: 6px; text-align: center; border: ${isSelected ? '2px solid white' : 'none'};">
+            ${isSelected ? '✓ ' : ''}${areaCity}
+          </div>
+        `;
+      });
+    }
+
+    function createNoiseChart(data) {
+      const canvasElement = document.getElementById('noiseChart');
+      const canvasCtx = canvasElement.getContext('2d');
+      if (!canvasCtx) {
+        console.error('[Noise] Could not get canvas context');
+        return;
+      }
+      const hours = ['12AM', '2AM', '4AM', '6AM', '8AM', '10AM', '12PM', '2PM', '4PM', '6PM', '8PM', '10PM'];
+      const noiseLevels = [45, 42, 40, 50, 72, 78, 75, 68, 70, 82, 80, 55];
+
+      // Create gradients
+      const gradient1 = canvasCtx.createLinearGradient(0, 0, 0, 400);
+      gradient1.addColorStop(0, 'rgba(243, 156, 18, 0.4)');
+      gradient1.addColorStop(1, 'rgba(243, 156, 18, 0.01)');
+
+      new Chart(canvasElement, {
+        type: 'line',
+        data: {
+          labels: hours,
+          datasets: [
+            {
+              label: '🔊 Noise Level (dB)',
+              data: noiseLevels,
+              borderColor: '#f39c12',
+              backgroundColor: gradient1,
+              borderWidth: 3,
+              fill: true,
+              tension: 0.4,
+              pointRadius: 6,
+              pointHoverRadius: 8,
+              pointBackgroundColor: '#f39c12',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2
+            },
+            {
+              label: '✅ Safe Limit (55 dB)',
+              data: [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55],
+              borderColor: '#2ecc71',
+              borderDash: [5, 5],
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: {
+            duration: 1500,
+            easing: 'easeInOutQuart'
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: { 
+              display: true,
+              labels: {
+                font: { size: 13, weight: 'bold' },
+                padding: 15,
+                usePointStyle: true
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              padding: 12,
+              titleFont: { size: 14, weight: 'bold' },
+              bodyFont: { size: 13 },
+              borderColor: '#f39c12',
+              borderWidth: 2,
+              callbacks: {
+                afterLabel: function(context) {
+                  if (context.datasetIndex === 0) {
+                    const value = context.parsed.y;
+                    if (value > 75) return '🔴 Very Loud - Hearing risk';
+                    if (value > 65) return '🟠 Loud - Disturbing';
+                    if (value > 55) return '🟡 Elevated - Noticeable';
+                    return '🟢 Quiet - Acceptable';
+                  }
+                }
+              }
+            }
+          },
+          scales: {
+            y: { 
+              beginAtZero: true, 
+              max: 100,
+              grid: { drawBorder: true, color: 'rgba(0,0,0,0.05)' },
+              ticks: { 
+                callback: function(value) { return value + ' dB'; },
+                font: { size: 12 }
+              }
+            },
+            x: {
+              grid: { drawBorder: false, display: false },
+              ticks: { font: { size: 12 } }
+            }
+          }
+        }
+      });
+    }
+
+    function displayNoiseHotspots(data) {
+      const hotspotsList = document.getElementById('hotspotsList');
+      hotspotsList.innerHTML = '';
+
+      data.noiseHotspots.forEach(spot => {
+        hotspotsList.innerHTML += `
+          <div class="hotspot-item">
+            <div class="hotspot-name">${spot.name}</div>
+            <div class="hotspot-details">
+              <span class="hotspot-level">${spot.level} dB</span>
+              <span class="hotspot-cause">${spot.cause}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function updateRealtimeStatus(data, category) {
+      try {
+        const user = JSON.parse(localStorage.getItem('user')) || { city: 'Bengaluru' };
+        const status = getHourlyStatus(user.city, category);
+        const el = document.getElementById('realtimeStatus');
+        const arrow = status.change === 'increased' ? '▲' : status.change === 'decreased' ? '▼' : '▶';
+        const color = status.label === 'High' ? '#e74c3c' : status.label === 'Moderate' ? '#f39c12' : '#2ecc71';
+        el.innerHTML = `Now: <strong style="color:${color}">${status.label} (${status.nowValue})</strong> • 1h ${status.change} ${arrow} (${status.diff}) — ${status.hourLabel}`;
+      } catch (e) {
+        console.error('Realtime noise status failed', e);
+      }
+    }
+
+    function displayRecommendations(data) {
+      const recommendationsList = document.getElementById('recommendationsList');
+      recommendationsList.innerHTML = '';
+
+      // Use API data if available, otherwise use fallback recommendations
+      const recommendations = (data && data.noiseRecommendations) ? data.noiseRecommendations : [
+        { icon: '🎧', title: 'Use Ear Protection', desc: 'Wear earplugs in high-noise areas to prevent hearing damage' },
+        { icon: '🏠', title: 'Soundproof Your Home', desc: 'Use noise-canceling windows and insulation' },
+        { icon: '⏰', title: 'Avoid Peak Noise Hours', desc: 'Stay indoors during rush hours and construction times' },
+        { icon: '🌳', title: 'Seek Quiet Spaces', desc: 'Visit parks and gardens for peaceful environments' }
+      ];
+
+      recommendations.forEach(rec => {
+        recommendationsList.innerHTML += `
+          <div class="recommendation-item">
+            <div class="rec-icon">${rec.icon}</div>
+            <div class="rec-content">
+              <div class="rec-title">${rec.title}</div>
+              <div class="rec-desc">${rec.desc}</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>

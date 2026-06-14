@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traffic Details - City Stress Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="details-page">
+  <!-- Dark mode toggle -->
+  <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
+  
+  <!-- LOADING SPINNER -->
+  <div id="loadingSpinner" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 9999;">
+    <div class="spinner"></div>
+    <p style="margin-top: 20px; font-size: 14px; color: #666;">Loading data...</p>
+  </div>
+  
+  <div class="details-header">
+    <a href="home.html" class="back-btn">← Back</a>
+    <div class="details-title">
+      <h1>🚗 Traffic Stress Analysis</h1>
+      <p id="cityName"></p>
+    </div>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+  </div>
+
+  <!-- MAIN STATS -->
+  <div class="details-container">
+    <!-- LOCATION OVERVIEW SECTION -->
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(245, 87, 108, 0.2);">
+      <h2 style="margin-top: 0; margin-bottom: 15px;">📍 Location Overview & Area Networks</h2>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">State</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedState">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">District</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedDistrict">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">Selected City/Area</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedCityDisplay">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">Total Areas in District</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="totalAreasCount">-</div>
+        </div>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-top: 15px;">
+        <div style="font-size: 12px; font-weight: bold; margin-bottom: 10px;">🌐 All City Areas in District:</div>
+        <div id="districtAreasGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-size: 13px;">
+          <!-- Areas will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card large">
+        <div class="stat-label">Current Traffic Stress</div>
+        <div class="stat-value" id="currentStress" style="color: #e74c3c;">-</div>
+        <div id="realtimeStatus" class="realtime-status">Now: - • 1h change: -</div>
+        <div class="stat-detail" id="stressDetail">-</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Congestion Level</div>
+        <div class="stat-value" id="congestion">-</div>
+        <div class="stat-detail">% of roads affected</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Average Delay</div>
+        <div class="stat-value" id="avgDelay">-</div>
+        <div class="stat-detail">minutes per journey</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Peak Hour</div>
+        <div class="stat-value" id="peakHour">-</div>
+        <div class="stat-detail">Most congested time</div>
+      </div>
+    </div>
+
+  <!-- PREDICTION CONTROLS -->
+  <div class="prediction-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin: 25px 0; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
+    <h2 style="margin-top: 0; font-size: 1.4em;">🔮 Traffic Prediction Model (Demo)</h2>
+    <p style="font-size: 13px; opacity: 0.9; margin-bottom: 20px;">Adjust conditions below to see how traffic patterns change. <strong>Note:</strong> This is a demo model. Real predictions require live traffic API data.</p>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px;">
+      <!-- Time Control -->
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px);">
+        <label style="display: block; font-size: 13px; font-weight: bold; margin-bottom: 8px;">⏰ Time of Day</label>
+        <input type="time" id="predictionTime" style="width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 14px;">
+        <div id="selectedTime" style="font-size: 12px; margin-top: 5px; opacity: 0.8;"></div>
+      </div>
+
+      <!-- Weather Control -->
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px);">
+        <label style="display: block; font-size: 13px; font-weight: bold; margin-bottom: 8px;">🌤️ Weather</label>
+        <select id="weatherCondition" style="width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 14px;">
+          <option value="clear">Clear (Normal)</option>
+          <option value="rain">Rain (+15% congestion)</option>
+          <option value="fog">Fog (+20% congestion)</option>
+          <option value="extreme">Extreme Weather (+30%)</option>
+        </select>
+      </div>
+
+      <!-- Event Control -->
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px);">
+        <label style="display: block; font-size: 13px; font-weight: bold; margin-bottom: 8px;">🎪 Special Event</label>
+        <select id="eventCondition" style="width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 14px;">
+          <option value="none">None (Normal)</option>
+          <option value="holiday">Holiday (+25% congestion)</option>
+          <option value="festival">Festival (+35% congestion)</option>
+          <option value="event">Event/Concert (+40%)</option>
+          <option value="emergency">Emergency/VIP (+50%)</option>
+        </select>
+      </div>
+
+      <!-- Roadwork Control -->
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px);">
+        <label style="display: block; font-size: 13px; font-weight: bold; margin-bottom: 8px;">🏗️ Roadwork</label>
+        <div style="display: flex; gap: 10px; margin-top: 8px;">
+          <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+            <input type="radio" name="roadwork" value="none" checked> None
+          </label>
+          <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+            <input type="radio" name="roadwork" value="minor"> Minor (+10%)
+          </label>
+          <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+            <input type="radio" name="roadwork" value="major"> Major (+25%)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; justify-content: center;">
+      <button id="generateForecastBtn" onclick="generateTrafficForecast()" style="background: white; color: #667eea; border: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+        📊 Generate 6-Hour Forecast
+      </button>
+      <button onclick="resetPredictionControls()" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid white; padding: 12px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">
+        🔄 Reset
+      </button>
+    </div>
+  </div>
+
+  <!-- 6-HOUR FORECAST RESULT -->
+  <div id="forecastResultSection" style="display: none;">
+    <h2>📈 6-Hour Traffic Forecast with Confidence Scores</h2>
+    <div id="sixHourForecast" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;"></div>
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea; margin-bottom: 20px;">
+      <div style="font-size: 13px;"><strong>Peak Time:</strong> <span id="predictedPeakTime">-</span></div>
+      <div style="font-size: 13px; margin-top: 5px;"><strong>Recommendation:</strong> <span id="predictedRecommendation">-</span></div>
+      <div style="font-size: 12px; margin-top: 5px; color: #666;"><strong>Model Confidence:</strong> <span id="modelConfidence">-</span></div>
+    </div>
+  </div>
+
+  <!-- 24-HOUR FORECAST GRID -->
+  <div class="forecast-section">
+    <h2>📅 Traffic Forecast (Next 24 Hours)</h2>
+    <div class="forecast-grid" id="forecastGrid"></div>
+  </div>
+
+    <!-- HOURLY CHART -->
+    <div class="chart-section">
+      <h2>📊 24-Hour Traffic Pattern</h2>
+      <canvas id="trafficChart"></canvas>
+    </div>
+
+    <!-- HOT SPOTS -->
+    <div class="hotspots-section">
+      <h2>🔴 Traffic Hotspots</h2>
+      <div class="hotspots-list" id="hotspotsList"></div>
+    </div>
+
+    <!-- RECOMMENDATIONS -->
+    <div class="recommendations-section">
+      <h2>💡 Smart Recommendations</h2>
+      <div class="recommendations-list" id="recommendationsList"></div>
+    </div>
+
+    <!-- TRAFFIC FLOW MAP -->
+    <div class="flow-section">
+      <h2>🗺️ Traffic Flow Status</h2>
+      <div class="traffic-flow">
+        <div class="flow-item good">
+          <span>✅ Free Flow</span>
+          <span id="freeRoads">30%</span>
+        </div>
+        <div class="flow-item moderate">
+          <span>🟡 Moderate</span>
+          <span id="moderateRoads">45%</span>
+        </div>
+        <div class="flow-item heavy">
+          <span>🔴 Heavy Congestion</span>
+          <span id="heavyRoads">25%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="apiService.js"></script>
+  <script>
+    // ====== GLOBAL VARIABLES ======
+    let currentCityData = null;
+    
+    // ====== DARK MODE TOGGLE ======
+    const themeToggle = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark-mode');
+      themeToggle.textContent = '☀️';
+    }
+    
+    themeToggle.addEventListener('click', function() {
+      document.body.classList.toggle('dark-mode');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      themeToggle.textContent = isDark ? '☀️' : '🌙';
+    });
+
+    document.addEventListener('DOMContentLoaded', initTrafficDetails);
+
+    function initTrafficDetails() {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      
+      const city = (user.city || '').trim();
+      const state = (user.state || '').trim();
+      const district = (user.district || '').trim();
+      
+      console.log('[Traffic] Initializing for city:', city);
+      console.log('[Traffic] User location:', {state, district, city});
+      
+      // Display location information
+      displayLocationInfo(state, district, city);
+      
+      if (!city) {
+        document.getElementById('cityName').textContent = `📍 No city selected`;
+        return;
+      }
+      
+      document.getElementById('cityName').textContent = `📍 ${city} (Loading...)`;
+      
+      // Fetch from backend API with timeout
+      let timeoutHandle = setTimeout(() => {
+        console.error('[Traffic] API Request timeout!');
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('cityName').textContent = `📍 ${city} (Connection timeout)`;
+      }, 15000);
+      
+      ApiService.getCityData(city).then(response => {
+        clearTimeout(timeoutHandle);
+        console.log('[Traffic] API Response received ✅');
+        currentCityData = response.data || response;
+        console.log('[Traffic] Data keys:', Object.keys(currentCityData || {}).slice(0, 8));
+        
+        if (!currentCityData || !currentCityData.traffic) {
+          throw new Error('Invalid data - no traffic field');
+        }
+        
+        // Hide loading spinner
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        displayTrafficStats(currentCityData);
+        displayForecast(currentCityData);
+        createTrafficChart(currentCityData);
+        displayHotspots(currentCityData);
+        displayRecommendations(currentCityData);
+        document.getElementById('cityName').textContent = `📍 ${city}`;
+        
+        // Start realtime updates for hourly status
+        updateRealtimeStatus(currentCityData);
+        setInterval(() => {
+          ApiService.getCityData(city).then(res => {
+            const latest = res.data || res;
+            if (latest) {
+              currentCityData = latest;
+              updateRealtimeStatus(latest);
+            }
+          }).catch(e => console.warn('[Traffic] Realtime update failed:', e.message));
+        }, 60000);
+      }).catch(err => {
+        clearTimeout(timeoutHandle);
+        console.error('[Traffic] ERROR:', err.message);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('cityName').textContent = `📍 ${city} (❌ ${err.message})`;
+      });
+    }
+
+    function displayTrafficStats(data) {
+      document.getElementById('currentStress').textContent = Math.round(data.traffic.stress);
+      document.getElementById('stressDetail').textContent = data.traffic.description;
+      document.getElementById('congestion').textContent = data.traffic.congestion;
+      document.getElementById('avgDelay').textContent = data.traffic.avgDelay;
+
+      const peaks = data.hourlyPeaks.stress;
+      const maxIndex = peaks.indexOf(Math.max(...peaks));
+      document.getElementById('peakHour').textContent = data.hourlyPeaks.hours[maxIndex];
+
+      // Traffic flow
+      document.getElementById('freeRoads').textContent = Math.max(0, 100 - data.traffic.congestion - 20) + '%';
+      document.getElementById('moderateRoads').textContent = '45%';
+      document.getElementById('heavyRoads').textContent = Math.min(30, data.traffic.congestion - 20) + '%';
+    }
+
+    function updateRealtimeStatus(data) {
+      try {
+        const user = JSON.parse(localStorage.getItem('user')) || { city: 'Bengaluru' };
+        const status = getHourlyStatus(user.city);
+        const el = document.getElementById('realtimeStatus');
+        const arrow = status.change === 'increased' ? '▲' : status.change === 'decreased' ? '▼' : '▶';
+        const color = status.label === 'High' ? '#e74c3c' : status.label === 'Moderate' ? '#f39c12' : '#2ecc71';
+        el.innerHTML = `Now: <strong style="color:${color}">${status.label} (${status.nowValue}%)</strong> • 1h ${status.change} ${arrow} (${status.diff}%) — ${status.hourLabel}`;
+      } catch (e) {
+        console.error('Realtime status update failed', e);
+      }
+    }
+
+    function displayForecast(data) {
+      const forecastGrid = document.getElementById('forecastGrid');
+      const currentHour = new Date().getHours();
+      const hours = data.hourlyPeaks.hours;
+      const stress = data.hourlyPeaks.stress;
+
+      forecastGrid.innerHTML = '';
+      
+      for (let i = 0; i < hours.length; i++) {
+        const stressLevel = stress[i];
+        let status = '✅ Free';
+        let statusClass = 'good';
+        
+        if (stressLevel < 40) {
+          status = '✅ Free (Safe to Travel)';
+          statusClass = 'good';
+        } else if (stressLevel < 65) {
+          status = '🟡 Moderate (Some Delays)';
+          statusClass = 'moderate';
+        } else {
+          status = '🔴 Congested (Avoid)';
+          statusClass = 'bad';
+        }
+
+        forecastGrid.innerHTML += `
+          <div class="forecast-card ${statusClass}">
+            <div class="forecast-time">${hours[i]}</div>
+            <div class="forecast-stress">${stressLevel}%</div>
+            <div class="forecast-status">${status}</div>
+          </div>
+        `;
+      }
+    }
+
+    function createTrafficChart(data) {
+      const canvasElement = document.getElementById('trafficChart');
+      
+      // Get the 2D context to create gradient
+      const canvasCtx = canvasElement.getContext('2d');
+      if (!canvasCtx) {
+        console.error('[Traffic] Could not get canvas context');
+        return;
+      }
+      
+      // Create gradient for better visual appeal
+      const gradient = canvasCtx.createLinearGradient(0, 0, 0, 400);
+      gradient.addColorStop(0, 'rgba(231, 76, 60, 0.4)');
+      gradient.addColorStop(1, 'rgba(231, 76, 60, 0.01)');
+      
+      new Chart(canvasElement, {
+        type: 'line',
+        data: {
+          labels: data.hourlyPeaks.hours,
+          datasets: [{
+            label: '📊 Traffic Congestion Level',
+            data: data.hourlyPeaks.stress,
+            borderColor: '#e74c3c',
+            backgroundColor: gradient,
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#e74c3c',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBorderWidth: 3,
+            segment: {
+              borderDash: ctx => ctx.p1DataIndex % 2 === 0 ? [0] : [5, 5]
+            }
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: {
+            duration: 1500,
+            easing: 'easeInOutQuart'
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: { 
+              display: true, 
+              position: 'top',
+              labels: {
+                font: { size: 13, weight: 'bold' },
+                padding: 15,
+                usePointStyle: true
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              padding: 12,
+              titleFont: { size: 14, weight: 'bold' },
+              bodyFont: { size: 13 },
+              borderColor: '#e74c3c',
+              borderWidth: 2,
+              displayColors: true,
+              callbacks: {
+                afterLabel: function(context) {
+                  const value = context.parsed.y;
+                  if (value > 80) return '🔴 Critical - Heavy congestion';
+                  if (value > 60) return '🟠 High - Significant delays';
+                  if (value > 40) return '🟡 Moderate - Some delays';
+                  return '🟢 Good - Free flow traffic';
+                }
+              }
+            }
+          },
+          scales: {
+            y: { 
+              beginAtZero: true, 
+              max: 100,
+              grid: { drawBorder: true, color: 'rgba(0,0,0,0.05)' },
+              ticks: { 
+                callback: function(value) { return value + '%'; },
+                font: { size: 12 }
+              }
+            },
+            x: {
+              grid: { drawBorder: false, display: false },
+              ticks: { font: { size: 12 } }
+            }
+          }
+        }
+      });
+    }
+
+    function displayHotspots(data) {
+      const hotspotsList = document.getElementById('hotspotsList');
+      hotspotsList.innerHTML = '';
+
+      const spots = (data.trafficHotspots && data.trafficHotspots.length) ? data.trafficHotspots : generateFallbackHotspots(data);
+      spots.forEach(spot => {
+        const severityColor = spot.severity === 'Critical' ? '#e74c3c' : spot.severity === 'High' ? '#f39c12' : '#2ecc71';
+        hotspotsList.innerHTML += `
+          <div class="hotspot-item" style="border-left: 4px solid ${severityColor}">
+            <div class="hotspot-name">${spot.name}</div>
+            <div class="hotspot-details">
+              <span class="hotspot-severity" style="background: ${severityColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">
+                ${spot.severity}
+              </span>
+              <span class="hotspot-traffic">${spot.traffic}% congested</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // Create generic hotspots for cities without detailed data
+    function generateFallbackHotspots(data) {
+      try {
+        const user = JSON.parse(localStorage.getItem('user')) || { city: 'Unknown' };
+        const cityName = user.city || 'City';
+        const common = ['Central Junction', 'Main Road', 'Ring Road', 'Market Area', 'Railway Station', 'Bus Terminal', 'Airport Road', 'Industrial Area', 'University Area', 'Hospital Junction'];
+        return common.map((label, i) => ({
+          name: `${cityName} - ${label}`,
+          severity: i < 3 ? (i === 0 ? 'Critical' : 'High') : 'Moderate',
+          traffic: Math.max(40, 80 - i * 4)
+        }));
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function displayRecommendations(data) {
+      const recommendationsList = document.getElementById('recommendationsList');
+      recommendationsList.innerHTML = '';
+
+      const recommendations = (data && data.trafficRecommendations) ? data.trafficRecommendations : [
+        { icon: '🅰️', title: 'Use Alternative Routes', desc: 'Check maps for less congested routes' },
+        { icon: '⏰', title: 'Avoid Peak Hours', desc: 'Travel between 10 PM - 6 AM for smooth traffic' },
+        { icon: '🚗', title: 'Carpool with Friends', desc: 'Reduce vehicle count and traffic load' },
+        { icon: '📱', title: 'Real-time Updates', desc: 'Use GPS apps for live traffic information' }
+      ];
+
+      recommendations.forEach(rec => {
+        recommendationsList.innerHTML += `
+          <div class="recommendation-item">
+            <div class="rec-icon">${rec.icon}</div>
+            <div class="rec-content">
+              <div class="rec-title">${rec.title}</div>
+              <div class="rec-desc">${rec.desc}</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // ====== TRAFFIC PREDICTION MODEL ======
+    function generateTrafficForecast() {
+      if (!currentCityData) {
+        alert('City data not loaded yet. Please wait for the page to load.');
+        return;
+      }
+      
+      // Get selected prediction parameters
+      const timeInput = document.getElementById('predictionTime').value;
+      const weather = document.getElementById('weatherCondition').value;
+      const event = document.getElementById('eventCondition').value;
+      const roadwork = document.querySelector('input[name="roadwork"]:checked').value;
+      
+      // Parse time or use current time
+      let startHour = new Date().getHours();
+      if (timeInput) {
+        startHour = parseInt(timeInput.split(':')[0]);
+      }
+      
+      // Calculate modifiers
+      let weatherModifier = 0;
+      if (weather === 'rain') weatherModifier = 15;
+      else if (weather === 'fog') weatherModifier = 20;
+      else if (weather === 'extreme') weatherModifier = 30;
+      
+      let eventModifier = 0;
+      if (event === 'holiday') eventModifier = 25;
+      else if (event === 'festival') eventModifier = 35;
+      else if (event === 'event') eventModifier = 40;
+      else if (event === 'emergency') eventModifier = 50;
+      
+      let roadworkModifier = 0;
+      if (roadwork === 'minor') roadworkModifier = 10;
+      else if (roadwork === 'major') roadworkModifier = 25;
+      
+      // Generate 6-hour forecast
+      const forecast = [];
+      const baseStress = currentCityData.hourlyPeaks?.stress || [];
+      const hours = currentCityData.hourlyPeaks?.hours || [];
+      
+      for (let i = 0; i < 6; i++) {
+        const hourIndex = (startHour + i) % 24;
+        const baseValue = baseStress[hourIndex] || 50;
+        
+        // Apply modifiers with random variation
+        const modifier = weatherModifier + eventModifier + roadworkModifier;
+        const variation = (Math.random() - 0.5) * 10; // ±5% variation
+        let predictedStress = Math.max(20, Math.min(100, baseValue + modifier + variation));
+        
+        // Calculate confidence score
+        let confidence = 85; // Base confidence
+        confidence -= Math.abs(modifier) * 0.2; // Less confident with more modifiers
+        confidence += (Math.abs(weatherModifier) + eventModifier) * 0.1; // More confident with clear modifiers
+        confidence = Math.max(40, Math.min(95, confidence));
+        
+        forecast.push({
+          hour: i,
+          time: hours[hourIndex] || `${hourIndex}:00`,
+          stress: Math.round(predictedStress),
+          confidence: Math.round(confidence)
+        });
+      }
+      
+      displaySixHourForecast(forecast, startHour, hours, baseStress);
+    }
+
+    function displaySixHourForecast(forecast, startHour, hours, baseStress) {
+      const forecastSection = document.getElementById('forecastResultSection');
+      const sixHourDiv = document.getElementById('sixHourForecast');
+      
+      sixHourDiv.innerHTML = '';
+      
+      let peakHour = forecast[0];
+      let maxStress = 0;
+      
+      forecast.forEach(item => {
+        const statusEmoji = item.stress > 75 ? '🔴' : item.stress > 55 ? '🟡' : '🟢';
+        const confidenceColor = item.confidence > 80 ? '#2ecc71' : item.confidence > 60 ? '#f39c12' : '#e74c3c';
+        
+        sixHourDiv.innerHTML += `
+          <div style="background: linear-gradient(135deg, ${confidenceColor}22 0%, ${confidenceColor}11 100%); 
+                      border: 2px solid ${confidenceColor}; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${item.time}</div>
+            <div style="font-size: 24px; margin-bottom: 8px;">${statusEmoji}</div>
+            <div style="font-size: 20px; font-weight: bold; color: ${confidenceColor}; margin-bottom: 5px;">${item.stress}%</div>
+            <div style="font-size: 12px; color: #666;">Confidence: ${item.confidence}%</div>
+          </div>
+        `;
+        
+        if (item.stress > maxStress) {
+          maxStress = item.stress;
+          peakHour = item;
+        }
+      });
+      
+      // Display summary
+      document.getElementById('predictedPeakTime').textContent = `${peakHour.time} (${peakHour.stress}%)`;
+      
+      const recommendation = peakHour.stress > 75 ? 
+        '🚗 Avoid travel during peak time. Use alternative routes or public transport.' :
+        peakHour.stress > 55 ?
+        '⏰ Travel off-peak hours if possible. Some delays expected.' :
+        '✅ Good time to travel. Traffic flowing smoothly.';
+      document.getElementById('predictedRecommendation').textContent = recommendation;
+      
+      const avgConfidence = Math.round(forecast.reduce((a, b) => a + b.confidence, 0) / forecast.length);
+      document.getElementById('modelConfidence').textContent = `${avgConfidence}% (Based on ${Object.keys({weather: 1, event: 1, roadwork: 1}).length} factors)`;
+      
+      forecastSection.style.display = 'block';
+      forecastSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function resetPredictionControls() {
+      document.getElementById('predictionTime').value = '';
+      document.getElementById('weatherCondition').value = 'clear';
+      document.getElementById('eventCondition').value = 'none';
+      document.querySelector('input[name="roadwork"][value="none"]').checked = true;
+      document.getElementById('forecastResultSection').style.display = 'none';
+      document.getElementById('selectedTime').textContent = '';
+    }
+
+    // ====== LOCATION INFORMATION DISPLAY ======
+    function displayLocationInfo(state, district, city) {
+      try {
+        // Update header info
+        document.getElementById('selectedState').textContent = state || '-';
+        document.getElementById('selectedDistrict').textContent = district || '-';
+        document.getElementById('selectedCityDisplay').textContent = city || '-';
+        
+        // Get all cities/areas in the district
+        const areas = window.districtCityMap?.[district] || [];
+        document.getElementById('totalAreasCount').textContent = areas.length;
+        
+        // Display all areas
+        const areasGrid = document.getElementById('districtAreasGrid');
+        if (areasGrid) {
+          areasGrid.innerHTML = '';
+          if (areas.length > 0) {
+            areas.forEach(area => {
+              const isSelected = area === city;
+              const badge = document.createElement('div');
+              badge.style.cssText = `
+                padding: 8px 12px;
+                background: ${isSelected ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'};
+                border: ${isSelected ? '2px solid white' : '1px solid rgba(255,255,255,0.3)'};
+                border-radius: 6px;
+                cursor: default;
+                font-weight: ${isSelected ? 'bold' : 'normal'};
+              `;
+              badge.textContent = area + (isSelected ? ' ✓' : '');
+              areasGrid.appendChild(badge);
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[Traffic] Could not display location info:', err);
+      }
+    }
+
+    function resetPredictionControls() {
+      document.getElementById('predictionTime').value = '';
+      document.getElementById('weatherCondition').value = 'clear';
+      document.getElementById('eventCondition').value = 'none';
+      document.querySelector('input[name="roadwork"][value="none"]').checked = true;
+      document.getElementById('forecastResultSection').style.display = 'none';
+      document.getElementById('selectedTime').textContent = '';
+    }
+
+    // Set current time as default
+    document.addEventListener('DOMContentLoaded', () => {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('predictionTime').value = `${hours}:${minutes}`;
+      document.getElementById('selectedTime').textContent = `${hours}:${minutes}`;
+      
+      document.getElementById('predictionTime').addEventListener('change', (e) => {
+        const [h, m] = e.target.value.split(':');
+        document.getElementById('selectedTime').textContent = `${h}:${m}`;
+      });
+    });
+
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>

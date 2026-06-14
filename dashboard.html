@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Stress Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head>
+<body class="dashboard">
+  <div class="header">
+    <div class="header-left">
+      <h1>🏙️ City Stress Dashboard</h1>
+      <p id="cityName"></p>
+      <!-- change-location button hides selectors by default -->
+      <button id="changeLocBtn" class="small-btn">Change location</button>
+      <div id="locationSelectors" class="location-selectors">
+        <select id="dashState">
+          <option value="">-- Select State --</option>
+        </select>
+        <select id="dashDistrict">
+          <option value="">-- Select District --</option>
+        </select>
+        <select id="dashCity">
+          <option value="">-- Select City --</option>
+        </select>
+        <select id="dashArea">
+          <option value="">-- Select Area --</option>
+        </select>
+      </div>
+      <p id="dateTime"></p>
+    </div>
+    <div class="stress-score">
+      <div class="overall-score" id="overallScore">-</div>
+      <div class="status-badge" id="statusBadge">-</div>
+      <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+    </div>
+  </div>
+
+  <!-- STRESS CARDS -->
+  <div class="cards-container">
+    <div class="card">
+      <div class="card-icon">🚗</div>
+      <div class="card-title">Traffic Stress</div>
+      <div class="card-value" id="trafficStress">-</div>
+      <div class="card-detail">
+        Congestion: <span id="congestion">-</span>%<br>
+        Avg Delay: <span id="avgDelay">-</span> min
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🔊</div>
+      <div class="card-title">Noise Stress</div>
+      <div class="card-value" id="noiseStress">-</div>
+      <div class="card-detail">
+        Avg Level: <span id="noiseLevel">-</span> dB<br>
+        Areas Affected: <span id="noiseAreas">-</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <div class="card-title">Utility Stress</div>
+      <div class="card-value" id="utilityStress">-</div>
+      <div class="card-detail">
+        Power Outages: <span id="powerOutages">-</span> hrs<br>
+        Water Shortage Zones: <span id="waterZones">-</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🏥</div>
+      <div class="card-title">Healthcare Stress</div>
+      <div class="card-value" id="healthStress">-</div>
+      <div class="card-detail">
+        Hospital Occupancy: <span id="occupancy">-</span>%<br>
+        ER Waiting Time: <span id="waitTime">-</span> min
+      </div>
+    </div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="heatmap-container">
+    <div class="heatmap-header">
+      <h2>🗺️ City Stress Heatmap</h2>
+      <div class="heatmap-legend">
+        <div class="legend-item">
+          <div class="legend-color" style="background: #2ecc71;"></div> Low Stress
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #f1c40f;"></div> Moderate Stress
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #e74c3c;"></div> High Stress
+        </div>
+      </div>
+    </div>
+    <div id="heatmap"></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-container">
+    <div class="chart-box">
+      <div class="chart-title">⏰ 24-Hour Stress Peaks</div>
+      <canvas id="hourlyStressChart"></canvas>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-title">📊 7-Day Stress Trend</div>
+      <canvas id="weeklyStressChart"></canvas>
+    </div>
+  </div>
+
+  <!-- CORRELATION PANEL -->
+  <div class="correlation-container">
+    <div class="correlation-title">🔗 Stress Cause Correlations</div>
+    <div class="correlation-list">
+      <div class="correlation-item">
+        <strong>Traffic ↑ → Noise ↑</strong>
+        <p>Increased vehicular movement causes higher noise pollution in commercial zones.</p>
+      </div>
+      <div class="correlation-item">
+        <strong>Power Cuts ↑ → Hospital Stress ↑</strong>
+        <p>Frequent outages increase hospital burden as emergency services are strained.</p>
+      </div>
+      <div class="correlation-item">
+        <strong>Water Shortage ↑ → Utility Stress ↑</strong>
+        <p>Extended water cuts in summer months correlate with peak utility stress.</p>
+      </div>
+      <div class="correlation-item">
+        <strong>Rush Hour ↑ → Traffic & Healthcare Stress ↑</strong>
+        <p>Morning and evening rush hours spike traffic, leading to accidents and ER visits.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="apiService.js"></script>
+  <script src="locationManager.js"></script>
+  <script>
+    // wait for maps to load then initialize dashboard
+    document.addEventListener('DOMContentLoaded', async () => {
+      await LocationManager.initializeMaps();
+      initDashboard();
+    });
+
+    function initDashboard() {
+      const user = LocationManager.loadUser();
+      const city = user.city.trim();
+      if (!user || !LocationManager.validateUser(user)) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // attach selectors via shared manager; callbacks update dashboard
+      LocationManager.populateSelectors({
+        stateId: 'dashState',
+        districtId: 'dashDistrict',
+        cityId: 'dashCity',
+        areaId: 'dashArea',
+        initial: { state: user.state, district: user.district, city: user.city },
+        onStateChange: s => updateDashboardForSelection(s, '', ''),
+        onDistrictChange: d => updateDashboardForSelection(document.getElementById('dashState').value, '', d),
+        onCityChange: c => updateDashboardForSelection(document.getElementById('dashState').value, c, document.getElementById('dashDistrict').value),
+        onAreaChange: a => showAreaInfo(a)
+      });
+
+      // initial render based on stored location
+      updateDashboardForSelection(user.state, user.city, user.district);
+
+      // start live clock
+      updateDateTime();
+      setInterval(updateDateTime, 1000);
+    }
+
+    function updateDateTime() {
+      const now = new Date();
+      const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      };
+      document.getElementById('dateTime').textContent = now.toLocaleDateString('en-US', options);
+    }
+
+    function displayStressCards(data) {
+      if (!data) {
+        // clear all values
+        document.getElementById('trafficStress').textContent = '-';
+        document.getElementById('congestion').textContent = '-';
+        document.getElementById('avgDelay').textContent = '-';
+
+        document.getElementById('noiseStress').textContent = '-';
+        document.getElementById('noiseLevel').textContent = '-';
+        document.getElementById('noiseAreas').textContent = '-';
+
+        document.getElementById('utilityStress').textContent = '-';
+        document.getElementById('powerOutages').textContent = '-';
+        document.getElementById('waterZones').textContent = '-';
+
+        document.getElementById('healthStress').textContent = '-';
+        document.getElementById('occupancy').textContent = '-';
+        document.getElementById('waitTime').textContent = '-';
+        return;
+      }
+
+      document.getElementById('trafficStress').textContent = Math.round(data.traffic.stress);
+      document.getElementById('congestion').textContent = data.traffic.congestion;
+      document.getElementById('avgDelay').textContent = data.traffic.avgDelay;
+
+      document.getElementById('noiseStress').textContent = Math.round(data.noise.stress);
+      document.getElementById('noiseLevel').textContent = data.noise.level;
+      document.getElementById('noiseAreas').textContent = data.noise.affectedAreas;
+
+      document.getElementById('utilityStress').textContent = Math.round(data.utility.stress);
+      document.getElementById('powerOutages').textContent = data.utility.powerOutages;
+      document.getElementById('waterZones').textContent = data.utility.waterZones;
+
+      document.getElementById('healthStress').textContent = Math.round(data.healthcare.stress);
+      document.getElementById('occupancy').textContent = data.healthcare.occupancy;
+      document.getElementById('waitTime').textContent = data.healthcare.erWaitTime;
+    }
+
+    function displayOverallScore(data) {
+      const badge = document.getElementById('statusBadge');
+      badge.classList.remove('low', 'moderate', 'high');
+
+      if (!data) {
+        document.getElementById('overallScore').textContent = '-';
+        badge.textContent = '-';
+        return;
+      }
+
+      const score = calculateCityStressIndex(data);
+      document.getElementById('overallScore').textContent = Math.round(score);
+
+      if (score < 40) {
+        badge.textContent = '🟢 Low Stress';
+        badge.classList.add('low');
+      } else if (score < 65) {
+        badge.textContent = '🟡 Moderate Stress';
+        badge.classList.add('moderate');
+      } else {
+        badge.textContent = '🔴 High Stress';
+        badge.classList.add('high');
+      }
+    }
+
+    function calculateCityStressIndex(data) {
+      // Formula: 0.3×Traffic + 0.2×Noise + 0.25×Utility + 0.25×Healthcare
+      return (
+        0.3 * data.traffic.stress +
+        0.2 * data.noise.stress +
+        0.25 * data.utility.stress +
+        0.25 * data.healthcare.stress
+      );
+    }
+
+    // keep references to avoid rebuilding charts repeatedly
+    let hourlyChart = null;
+    let weeklyChart = null;
+
+    function createCharts(data) {
+      // destroy existing instances if present
+      if (hourlyChart) hourlyChart.destroy();
+      if (weeklyChart) weeklyChart.destroy();
+
+      // Hourly stress chart
+      const hourlyCtx = document.getElementById('hourlyStressChart');
+      hourlyChart = new Chart(hourlyCtx, {
+        type: 'line',
+        data: {
+          labels: data.hourlyPeaks.hours,
+          datasets: [{
+            label: 'City Stress Level',
+            data: data.hourlyPeaks.stress,
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 5,
+            pointBackgroundColor: '#667eea'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: true }
+          },
+          scales: {
+            y: { 
+              beginAtZero: true, 
+              max: 100,
+              title: { display: true, text: 'Stress Level (0-100)' }
+            }
+          }
+        }
+      });
+
+      // Weekly stress chart
+      const weeklyCtx = document.getElementById('weeklyStressChart');
+      weeklyChart = new Chart(weeklyCtx, {
+        type: 'bar',
+        data: {
+          labels: data.weeklyTrend.days,
+          datasets: [{
+            label: 'Daily Stress Index',
+            data: data.weeklyTrend.stress,
+            backgroundColor: [
+              '#2ecc71', '#2ecc71', '#f1c40f', '#f1c40f', '#e74c3c', '#e74c3c', '#f1c40f'
+            ],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: true }
+          },
+          scales: {
+            y: { 
+              beginAtZero: true, 
+              max: 100
+            }
+          }
+        }
+      });
+    }
+
+    function initHeatmap(city) {
+      // Get city coordinates
+      const cityCoords = {
+        'Bengaluru': [12.9716, 77.5946],
+        'Mumbai': [19.0760, 72.8777],
+        'Delhi': [28.7041, 77.1025],
+        'Hyderabad': [17.3850, 78.4867],
+        'Chennai': [13.0827, 80.2707]
+      };
+
+      const coords = cityCoords[city] || cityCoords['Bengaluru'];
+      const map = L.map('heatmap').setView(coords, 11);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      // Sample stress zones (low, moderate, high)
+      const stressZones = [
+        { lat: coords[0] + 0.05, lng: coords[1] + 0.05, stress: 80, name: 'Downtown - High Traffic' },
+        { lat: coords[0] - 0.05, lng: coords[1] + 0.03, stress: 55, name: 'Industrial Area - Moderate' },
+        { lat: coords[0] + 0.03, lng: coords[1] - 0.05, stress: 35, name: 'Residential - Low Stress' },
+        { lat: coords[0] - 0.03, lng: coords[1] - 0.03, stress: 45, name: 'Business District - Moderate' }
+      ];
+
+      stressZones.forEach(zone => {
+        const color = zone.stress < 40 ? '#2ecc71' : zone.stress < 65 ? '#f1c40f' : '#e74c3c';
+        L.circleMarker([zone.lat, zone.lng], {
+          radius: 25,
+          fillColor: color,
+          color: color,
+          weight: 2,
+          opacity: 0.8,
+          fillOpacity: 0.6
+        }).bindPopup(`<strong>${zone.name}</strong><br>Stress Level: ${zone.stress}`).addTo(map);
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = 'index.html';
+    }
+
+    // toggle display of location selectors
+    document.getElementById('changeLocBtn').addEventListener('click', function() {
+      const container = document.getElementById('locationSelectors');
+      if (container.style.display === 'block') {
+        container.style.display = 'none';
+      } else {
+        container.style.display = 'block';
+      }
+    });
+
+    // helper: re‑render dashboard when user changes location from selector
+    function updateDashboardForSelection(state, city, district) {
+      const user = JSON.parse(localStorage.getItem('user')) || {};
+      if (state) user.state = state;
+      if (district) user.district = district;
+      if (city) user.city = city;
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // update header text
+      let name = city || '';
+      if (district) name += `, ${district}`;
+      if (state) name += `, ${state}`;
+      document.getElementById('cityName').textContent = name ? `📍 ${name}` : '';
+      if (name) document.title = `City Stress Dashboard - ${name}`;
+      
+      // refresh metrics only if a valid city has been chosen
+      if (city) {
+        ApiService.getCityData(city)
+          .then(cityData => {
+            displayStressCards(cityData);
+            displayOverallScore(cityData);
+            createCharts(cityData);
+            initHeatmap(city);
+          })
+          .catch(error => {
+            console.error('Failed to load city data:', error);
+            displayStressCards(null);
+            displayOverallScore(null);
+            // differentiate 404 (no data) from other network issues
+            if (error.message.toLowerCase().includes('not found')) {
+              alert('No stress data available for the selected city.');
+            } else {
+              alert('Could not load the city data. Please check your connection or try again later.');
+            }
+          });
+      }
+    }
+
+
+    function showAreaInfo(areaName) {
+      const user = JSON.parse(localStorage.getItem('user')) || {};
+      const status = getAreaStatus(user.city, areaName);
+      // simple display; could be replaced with a dedicated panel
+      alert(`Area: ${areaName}\nTraffic: ${status.traffic.value} (${status.traffic.label})\nNoise: ${status.noise.value} (${status.noise.label})\nUtility: ${status.utility.value} (${status.utility.label})\nHealthcare: ${status.healthcare.value} (${status.healthcare.label})`);
+    }
+  </script>
+</body>
+</html>

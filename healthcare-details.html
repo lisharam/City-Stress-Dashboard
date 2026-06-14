@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Healthcare Details - City Stress Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="details-page">
+  <!-- Dark mode toggle -->
+  <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
+  
+  <div id="loadingSpinner" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 9999;">
+    <div class="spinner"></div>
+    <p style="margin-top: 20px; font-size: 14px; color: #666;">Loading data...</p>
+  </div>
+  
+  <div class="details-header">
+    <a href="home.html" class="back-btn">← Back</a>
+    <div class="details-title">
+      <h1>🏥 Healthcare System Analysis</h1>
+      <p id="cityName"></p>
+    </div>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+  </div>
+
+  <div class="details-container">
+    <!-- LOCATION OVERVIEW SECTION -->
+    <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.2);">
+      <h2 style="margin-top: 0; margin-bottom: 15px;">📍 Location Overview & Area Networks</h2>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">State</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedState">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">District</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedDistrict">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">Selected City/Area</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="selectedCityDisplay">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+          <div style="font-size: 12px; opacity: 0.9;">Total Areas in District</div>
+          <div style="font-size: 16px; font-weight: bold; margin-top: 5px;" id="totalAreasCount">-</div>
+        </div>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-top: 15px;">
+        <div style="font-size: 12px; font-weight: bold; margin-bottom: 10px;">🌐 All City Areas in District:</div>
+        <div id="districtAreasGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-size: 13px;">
+          <!-- Areas will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card large">
+        <div class="stat-label">Healthcare Stress</div>
+        <div class="stat-value" id="healthStress" style="color: #e74c3c;">-</div>
+        <div id="realtimeStatus" class="realtime-status">Now: - • 1h change: -</div>
+        <div class="stat-detail">System load index</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Hospital Bed Occupancy</div>
+        <div class="stat-value" id="occupancy">-</div>
+        <div class="stat-detail">% of beds occupied</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">ER Waiting Time</div>
+        <div class="stat-value" id="waitTime">-</div>
+        <div class="stat-detail">minutes average</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Available Beds</div>
+        <div class="stat-value" id="availableBeds">-</div>
+        <div class="stat-detail">Critical care units</div>
+      </div>
+    </div>
+
+    <!-- HOSPITAL STATUS GRID -->
+    <div class="hospitals-section">
+      <h2>🏥 Major Hospital Status</h2>
+      <div class="hospitals-grid" id="hospitalsGrid"></div>
+    </div>
+
+    <!-- BED AVAILABILITY CHART -->
+    <div class="chart-section">
+      <h2>🛏️ Bed Occupancy Trends</h2>
+      <canvas id="occupancyChart"></canvas>
+    </div>
+
+    <!-- ER WAIT TIME FORECAST -->
+    <div class="forecast-section">
+      <h2>⏳ ER Wait Time Forecast (Next 24 Hours)</h2>
+      <div class="forecast-grid" id="forecastGrid"></div>
+    </div>
+
+    <!-- CRITICAL ALERTS -->
+    <div class="critical-section">
+      <h2>🚨 Critical Alerts</h2>
+      <div class="alerts-list" id="alertsList"></div>
+    </div>
+
+    <!-- AMBULANCE RESPONSE -->
+    <div class="ambulance-section">
+      <h2>🚑 Ambulance Response Time</h2>
+      <div class="response-grid">
+        <div class="response-item">
+          <div class="response-zone">North Zone</div>
+          <div class="response-time" style="color: #2ecc71;">8 min</div>
+          <div class="response-status">✅ Good</div>
+        </div>
+        <div class="response-item">
+          <div class="response-zone">South Zone</div>
+          <div class="response-time" style="color: #f39c12;">15 min</div>
+          <div class="response-status">🟡 Moderate</div>
+        </div>
+        <div class="response-item">
+          <div class="response-zone">East Zone</div>
+          <div class="response-time" style="color: #f39c12;">14 min</div>
+          <div class="response-status">🟡 Moderate</div>
+        </div>
+        <div class="response-item">
+          <div class="response-zone">West Zone</div>
+          <div class="response-time" style="color: #e74c3c;">22 min</div>
+          <div class="response-status">🔴 Slow</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOCTOR AVAILABILITY -->
+    <div class="doctors-section">
+      <h2>👨‍⚕️ Specialist Availability</h2>
+      <div class="specialists-grid">
+        <div class="specialist-card">
+          <div class="specialist-name">Cardiologists</div>
+          <div class="specialist-available">8/15</div>
+          <div class="specialist-status">Good</div>
+        </div>
+        <div class="specialist-card">
+          <div class="specialist-name">Neurologists</div>
+          <div class="specialist-available">5/12</div>
+          <div class="specialist-status">Moderate</div>
+        </div>
+        <div class="specialist-card">
+          <div class="specialist-name">Orthopedic Surgeons</div>
+          <div class="specialist-available">6/10</div>
+          <div class="specialist-status">Good</div>
+        </div>
+        <div class="specialist-card">
+          <div class="specialist-name">Pediatricians</div>
+          <div class="specialist-available">9/20</div>
+          <div class="specialist-status">Good</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WHEN WILL BE NORMAL -->
+    <div class="recovery-section">
+      <h2>📅 Healthcare Capacity Recovery</h2>
+      <div class="timeline">
+        <div class="timeline-item completed">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-title">Today (Jan 19)</div>
+            <div class="timeline-desc">Current occupancy: 85% - Manageable</div>
+          </div>
+        </div>
+
+        <div class="timeline-item active">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-title">Jan 20 (Weekend)</div>
+            <div class="timeline-desc">Expected drop to 70% - More capacity available</div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-title">Jan 22</div>
+            <div class="timeline-desc">New private hospital opens - Pressure reduces</div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-title">Jan 25</div>
+            <div class="timeline-desc">Normal levels (60-65%) - All systems optimal</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECOMMENDATIONS -->
+    <div class="recommendations-section">
+      <h2>💡 Healthcare Tips</h2>
+      <div class="recommendations-list" id="recommendationsList"></div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="apiService.js"></script>
+  <script>
+    // ====== DARK MODE TOGGLE ======
+    const themeToggle = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark-mode');
+      themeToggle.textContent = '☀️';
+    }
+    
+    themeToggle.addEventListener('click', function() {
+      document.body.classList.toggle('dark-mode');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      themeToggle.textContent = isDark ? '☀️' : '🌙';
+    });
+
+    document.addEventListener('DOMContentLoaded', initHealthcareDetails);
+
+    function initHealthcareDetails() {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      
+      const city = (user.city || '').trim();
+      console.log('[Healthcare] Initializing for city:', city);
+      
+      if (!city) {
+        document.getElementById('cityName').textContent = `📍 No city selected`;
+        return;
+      }
+
+      document.getElementById('cityName').textContent = `📍 ${city} (Loading...)`;
+      
+      // Fetch from backend API with timeout
+      let timeoutHandle = setTimeout(() => {
+        console.error('[Healthcare] API Request timeout!');
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('cityName').textContent = `📍 ${city} (Connection timeout)`;
+      }, 15000);
+      
+      ApiService.getCityData(city).then(response => {
+        clearTimeout(timeoutHandle);
+        console.log('[Healthcare] API Response received ✅');
+        const cityData = response.data || response;
+        console.log('[Healthcare] Data keys:', Object.keys(cityData || {}).slice(0, 8));
+        
+        if (!cityData || !cityData.healthcare) {
+          throw new Error('Invalid data - no healthcare field');
+        }
+        
+        // Hide loading spinner
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        displayHealthcareStats(cityData);
+        displayHospitals(cityData);
+        displayAmbulanceResponse(cityData);
+        createOccupancyChart();
+        displayForecast();
+        displayAlerts();
+        displayRecommendations(cityData);
+        document.getElementById('cityName').textContent = `📍 ${city}`;
+        
+        // Display location information
+        const user = JSON.parse(localStorage.getItem('user')) || {};
+        const state = user.state || 'Karnataka';
+        const district = user.district || 'Unknown';
+        displayLocationInfo(state, district, city);
+        
+        // Realtime healthcare updates
+        updateRealtimeStatus(cityData, 'healthcare');
+        setInterval(() => {
+          ApiService.getCityData(city).then(res => {
+            const latest = res.data || res;
+            if (latest) updateRealtimeStatus(latest, 'healthcare');
+          }).catch(e => console.warn('[Healthcare] Realtime update failed:', e.message));
+        }, 60000);
+      }).catch(err => {
+        clearTimeout(timeoutHandle);
+        console.error('[Healthcare] ERROR:', err.message);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('cityName').textContent = `📍 ${city} (❌ ${err.message})`;
+      });
+    }
+
+    function displayAmbulanceResponse(data) {
+      const responseGrid = document.querySelector('.response-grid');
+      responseGrid.innerHTML = '';
+
+      data.ambulanceResponse.forEach(response => {
+        responseGrid.innerHTML += `
+          <div class="response-item">
+            <div class="response-zone">${response.zone}</div>
+            <div class="response-time" style="color: ${response.status === 'Good' ? '#2ecc71' : '#f39c12'};">${response.time} min</div>
+            <div class="response-status">${response.status === 'Good' ? '✅ Good' : '🟡 Moderate'}</div>
+          </div>
+        `;
+      });
+    }
+
+    function displayHealthcareStats(data) {
+      document.getElementById('healthStress').textContent = Math.round(data.healthcare.stress);
+      document.getElementById('occupancy').textContent = data.healthcare.occupancy;
+      document.getElementById('waitTime').textContent = data.healthcare.erWaitTime;
+      document.getElementById('availableBeds').textContent = Math.round((100 - data.healthcare.occupancy) / 10);
+    }
+
+    function displayHospitals(cityData) {
+      // ← CHANGED: Accept cityData parameter instead of calling local getCityData()
+      const hospitalsGrid = document.getElementById('hospitalsGrid');
+      hospitalsGrid.innerHTML = '';
+
+      // Display hospitals grouped by area
+      if (cityData.hospitals && Array.isArray(cityData.hospitals)) {
+        cityData.hospitals.forEach(areaGroup => {
+          const areaHeader = document.createElement('div');
+          areaHeader.style.cssText = 'grid-column: 1/-1; font-weight: bold; margin-top: 16px; margin-bottom: 8px; color: #667eea; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;';
+          areaHeader.textContent = `📍 ${areaGroup.area}`;
+          hospitalsGrid.appendChild(areaHeader);
+
+          areaGroup.hospitals.forEach(hospital => {
+            const statusColor = hospital.occupancy > 85 ? '#e74c3c' : hospital.occupancy > 75 ? '#f39c12' : '#2ecc71';
+            const hospitalCard = document.createElement('div');
+            hospitalCard.className = 'hospital-card';
+            hospitalCard.style.borderLeft = `4px solid ${statusColor}`;
+            hospitalCard.innerHTML = `
+              <div class="hospital-name">${hospital.name}</div>
+              <div class="hospital-stat">
+                <span>Beds: ${hospital.beds}</span>
+                <span>Occupancy: ${hospital.occupancy}%</span>
+              </div>
+              <div class="hospital-stat">
+                <span>ER Wait: ${hospital.erWait} min</span>
+              </div>
+            `;
+            hospitalsGrid.appendChild(hospitalCard);
+          });
+        });
+      } else {
+        hospitalsGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #999; padding: 20px;">No hospital data available</div>';
+      }
+    }
+
+    function displayLocationInfo(state, district, city) {
+      document.getElementById('selectedState').textContent = state;
+      document.getElementById('selectedDistrict').textContent = district;
+      document.getElementById('selectedCityDisplay').textContent = city + ' ✓';
+      
+      const cities = window.districtCityMap[district] || [];
+      document.getElementById('totalAreasCount').textContent = cities.length;
+      
+      const areasGrid = document.getElementById('districtAreasGrid');
+      areasGrid.innerHTML = '';
+      cities.forEach(areaCity => {
+        const isSelected = areaCity === city;
+        areasGrid.innerHTML += `
+          <div style="background: ${isSelected ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)'}; padding: 8px; border-radius: 6px; text-align: center; border: ${isSelected ? '2px solid white' : 'none'};">
+            ${isSelected ? '✓ ' : ''}${areaCity}
+          </div>
+        `;
+      });
+    }
+
+    function createOccupancyChart() {
+      const canvasElement = document.getElementById('occupancyChart');
+      const canvasCtx = canvasElement.getContext('2d');
+      if (!canvasCtx) {
+        console.error('[Healthcare] Could not get canvas context');
+        return;
+      }
+      
+      // Create gradient
+      const gradient = canvasCtx.createLinearGradient(0, 0, 0, 400);
+      gradient.addColorStop(0, 'rgba(231, 76, 60, 0.4)');
+      gradient.addColorStop(1, 'rgba(231, 76, 60, 0.01)');
+      
+      new Chart(canvasElement, {
+        type: 'line',
+        data: {
+          labels: ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM', '12 AM'],
+          datasets: [{
+            label: '🛏️ Bed Occupancy Rate',
+            data: [60, 55, 65, 75, 82, 88, 85, 78, 70],
+            borderColor: '#e74c3c',
+            backgroundColor: gradient,
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#e74c3c',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: {
+            duration: 1500,
+            easing: 'easeInOutQuart'
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: { 
+              display: true,
+              labels: {
+                font: { size: 13, weight: 'bold' },
+                padding: 15,
+                usePointStyle: true
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              padding: 12,
+              titleFont: { size: 14, weight: 'bold' },
+              bodyFont: { size: 13 },
+              borderColor: '#e74c3c',
+              borderWidth: 2,
+              callbacks: {
+                afterLabel: function(context) {
+                  const value = context.parsed.y;
+                  if (value > 85) return '🔴 Critical - Overbooked';
+                  if (value > 75) return '🟠 High - Limited availability';
+                  if (value > 60) return '🟡 Moderate - Some capacity';
+                  return '🟢 Good - Beds available';
+                }
+              }
+            }
+          },
+          scales: {
+            y: { 
+              beginAtZero: true, 
+              max: 100,
+              grid: { drawBorder: true, color: 'rgba(0,0,0,0.05)' },
+              ticks: { 
+                callback: function(value) { return value + '%'; },
+                font: { size: 12 }
+              }
+            },
+            x: {
+              grid: { drawBorder: false, display: false },
+              ticks: { font: { size: 12 } }
+            }
+          }
+        }
+      });
+    }
+
+    function displayForecast() {
+      const forecastGrid = document.getElementById('forecastGrid');
+      const hours = ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM', '12 AM'];
+      const waitTimes = [15, 10, 20, 35, 45, 50, 48, 40, 25];
+
+      forecastGrid.innerHTML = '';
+      
+      for (let i = 0; i < hours.length; i++) {
+        const wait = waitTimes[i];
+        let status = '✅ Quick';
+        let statusClass = 'good';
+        
+        if (wait > 40) {
+          status = '🟡 Long Wait';
+          statusClass = 'moderate';
+        }
+
+        forecastGrid.innerHTML += `
+          <div class="forecast-card ${statusClass}">
+            <div class="forecast-time">${hours[i]}</div>
+            <div class="forecast-stress">${wait} min</div>
+            <div class="forecast-status">${status}</div>
+          </div>
+        `;
+      }
+    }
+
+    function displayAlerts() {
+      const alertsList = document.getElementById('alertsList');
+      const alerts = [
+        { type: '🔴 Critical', msg: 'Fortis Hospital ICU at 100% capacity - Divert critical cases' },
+        { type: '🟡 Warning', msg: 'South Zone ER wait time exceeding 50 minutes' },
+        { type: '✅ Info', msg: 'New 50-bed emergency wing opens on Jan 22' }
+      ];
+
+      alertsList.innerHTML = '';
+      alerts.forEach(alert => {
+        alertsList.innerHTML += `
+          <div class="alert-item ${alert.type.includes('Critical') ? 'alert-critical' : alert.type.includes('Warning') ? 'alert-warning' : 'alert-info'}">
+            <div class="alert-type">${alert.type}</div>
+            <div class="alert-msg">${alert.msg}</div>
+          </div>
+        `;
+      });
+    }
+
+    function displayRecommendations(apiData) {
+      const recommendationsList = document.getElementById('recommendationsList');
+      recommendationsList.innerHTML = '';
+
+      // Use API data if available, otherwise use fallback recommendations
+      const recommendations = (apiData && apiData.healthcareRecommendations) ? apiData.healthcareRecommendations : [
+        { icon: '🏥', title: 'Visit nearby hospitals', desc: 'For non-emergency care, use local clinics' },
+        { icon: '⏰', title: 'Avoid peak hours', desc: 'Lowest wait times between 2-4 AM' },
+        { icon: '📞', title: 'Call ahead', desc: 'Always confirm bed availability before visiting' },
+        { icon: '💊', title: 'Prepare documents', desc: 'Have insurance and medical records ready' }
+      ];
+
+      recommendations.forEach(rec => {
+        recommendationsList.innerHTML += `
+          <div class="recommendation-item">
+            <div class="rec-icon">${rec.icon}</div>
+            <div class="rec-content">
+              <div class="rec-title">${rec.title}</div>
+              <div class="rec-desc">${rec.desc}</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function updateRealtimeStatus(data, category) {
+      try {
+        const user = JSON.parse(localStorage.getItem('user')) || { city: 'Bengaluru' };
+        const status = getHourlyStatus(user.city, category);
+        const el = document.getElementById('realtimeStatus');
+        const arrow = status.change === 'increased' ? '▲' : status.change === 'decreased' ? '▼' : '▶';
+        const color = status.label === 'High' ? '#e74c3c' : status.label === 'Moderate' ? '#f39c12' : '#2ecc71';
+        el.innerHTML = `Now: <strong style="color:${color}">${status.label} (${status.nowValue})</strong> • 1h ${status.change} ${arrow} (${status.diff}) — ${status.hourLabel}`;
+      } catch (e) {
+        console.error('Realtime healthcare status failed', e);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>
